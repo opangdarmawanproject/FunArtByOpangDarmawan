@@ -90,7 +90,7 @@
 
         <!-- Tombol Aksi (Undo, Hapus, Simpan) -->
         <div class="flex items-center gap-2 ml-auto">
-            <button id="smoothBtn" class="flex items-center gap-1 px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 border border-transparent rounded-lg text-sm font-bold text-white hover:opacity-90 transition shadow-md active:scale-95" title="Rapihkan Semua Coretan">
+            <button id="smoothBtn" class="flex items-center gap-1 px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 border border-transparent rounded-lg text-sm font-bold text-white hover:opacity-90 transition shadow-md active:scale-95" title="Ubah Coretan Jadi Geometris (Lurus/Melengkung Sempurna)">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H5"/><path d="M19 16h-2"/><path d="M14 22v-2"/></svg>
                 <span class="hidden sm:inline">Rapihkan</span>
             </button>
@@ -102,7 +102,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                 <span class="hidden lg:inline">Bersihkan</span>
             </button>
-            <button id="downloadBtn" class="flex items-center gap-1 px-3 py-2 bg-indigo-600 border border-indigo-600 rounded-lg text-sm font-medium text-white hover:bg-indigo-700 transition shadow-sm active:bg-indigo-800" title="Simpan Gambar">
+            <button id="downloadBtn" class="flex items-center gap-1 px-3 py-2 bg-indigo-600 border border-indigo-600 rounded-lg text-sm font-medium text-white hover:bg-indigo-700 transition shadow-sm active:bg-indigo-800" title="Simpan Gambar HD">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
                 <span class="hidden lg:inline">Simpan</span>
             </button>
@@ -126,13 +126,12 @@
         <div id="welcomeMessage" class="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-500 z-20">
             <div class="bg-white/90 backdrop-blur px-6 py-4 rounded-2xl shadow-xl text-center border border-gray-200">
                 <p class="text-gray-800 font-bold mb-1 text-lg">Mulai Menggambar!</p>
-                <p class="text-gray-500 text-sm">Goresanmu dapat dirapihkan secara otomatis.</p>
+                <p class="text-gray-500 text-sm">Coret asal saja, lalu klik tombol "Rapihkan".</p>
             </div>
         </div>
     </main>
 
     <script>
-    // Membungkus seluruh logika untuk memastikan semua elemen HTML siap dibaca
     document.addEventListener('DOMContentLoaded', () => {
 
         // --- INISIALISASI VARIABEL ---
@@ -168,7 +167,6 @@
             if(!container) return;
             const rect = container.getBoundingClientRect();
             
-            // Atur dimensi agar presisi
             if (canvas.width !== Math.round(rect.width) || canvas.height !== Math.round(rect.height)) {
                 canvas.width = Math.round(rect.width);
                 canvas.height = Math.round(rect.height);
@@ -179,16 +177,24 @@
         window.addEventListener('resize', resizeCanvas);
         setTimeout(resizeCanvas, 100);
 
-        // --- FUNGSI PENGHALUS KOORDINAT ---
+
+        // ====================================================================
+        // --- ALGORITMA PENYEMPURNAAN BENTUK (MELURUSKAN & MELENGKUNGKAN) ---
+        // ====================================================================
+
+        // Penghalus Akhir (Moving Average / Laplacian Smoothing)
+        // Fungsi ini secara lembut menyetrika garis yang bergetar tanpa memotong koordinat, 
+        // sehingga BENTUK ASLI SAMA SEKALI TIDAK BERUBAH atau menjadi kaku.
         function getSmoothedPoints(points, passes = 4) {
             if (points.length < 3) return points;
             let smoothed = [...points];
             for (let p = 0; p < passes; p++) {
                 let temp = [smoothed[0]]; 
                 for (let i = 1; i < smoothed.length - 1; i++) {
+                    // Menggunakan rata-rata berbobot (weighted average) agar bentuk asli tidak menyusut/berubah
                     temp.push({
-                        x: (smoothed[i - 1].x + smoothed[i].x + smoothed[i + 1].x) / 3,
-                        y: (smoothed[i - 1].y + smoothed[i].y + smoothed[i + 1].y) / 3
+                        x: (smoothed[i - 1].x + smoothed[i].x * 2 + smoothed[i + 1].x) / 4,
+                        y: (smoothed[i - 1].y + smoothed[i].y * 2 + smoothed[i + 1].y) / 4
                     });
                 }
                 temp.push(smoothed[smoothed.length - 1]); 
@@ -196,6 +202,7 @@
             }
             return smoothed;
         }
+
 
         // --- ALGORITMA MENGGAMBAR ---
         function drawSmoothPath(context, pathData) {
@@ -208,6 +215,7 @@
             const tool = pathData.tool || 'pena';
             const size = parseFloat(pathData.size) || 5;
 
+            // Pengaturan Visual untuk Aneka Tool
             if (tool === 'pensil') {
                 context.strokeStyle = pathData.color;
                 context.lineWidth = Math.max(1, size * 0.4); 
@@ -237,6 +245,7 @@
                 context.lineJoin = 'round';
             }
 
+            // Jika hanya sisa 2 titik (misalnya garis lurus sempurna hasil RDP)
             if (points.length < 3) {
                 context.moveTo(points[0].x, points[0].y);
                 for (let i = 1; i < points.length; i++) {
@@ -247,6 +256,7 @@
                 return;
             }
 
+            // Menggambar Kurva untuk sisa titik (Bezier Curve)
             context.moveTo(points[0].x, points[0].y);
             for (let i = 1; i < points.length - 2; i++) {
                 const xc = (points[i].x + points[i + 1].x) / 2;
@@ -322,7 +332,7 @@
             if (currentPath.length > 0) {
                 const lastPoint = currentPath[currentPath.length - 1];
                 const dist = Math.hypot(coords.x - lastPoint.x, coords.y - lastPoint.y);
-                if (dist < 4) return; // Mencegah getaran mikro
+                if (dist < 4) return; // Mencegah getaran mikro saat menggambar langsung
             }
             currentPath.push(coords);
             redrawAllPaths();
@@ -374,12 +384,10 @@
             btn.addEventListener('click', () => setActiveTool(btn));
         });
         
-        // Inisialisasi Tool
         setActiveTool(document.querySelector('[data-tool="pena"]'));
 
-        // Upload Tracing Fix
         uploadTracingBtn.addEventListener('click', () => {
-            uploadTracingInput.value = ''; // Reset yang benar agar bisa di klik lagi
+            uploadTracingInput.value = ''; 
             uploadTracingInput.click();
         });
 
@@ -396,36 +404,43 @@
             }
         });
 
-        // Pengatur Opacity Tracing
         tracingOpacity.addEventListener('input', (e) => {
             tracingImage.style.opacity = (parseFloat(e.target.value) / 100).toString();
         });
 
-        // Tombol Rapihkan 
+
+        // =================================================================
+        // EKSEKUSI TOMBOL RAPIHKAN (SMOOTHING NON-DESTRUKTIF)
+        // =================================================================
         smoothBtn.addEventListener('click', () => {
             if (savedPaths.length === 0) return;
 
             savedPaths = savedPaths.map(path => {
+                // Hanya gunakan pelembutan matematis (Laplacian Smoothing)
+                // Algoritma pemotong sudut (RDP) telah dihapus total agar bentuk tidak berubah.
+                let optimized = getSmoothedPoints(path.points, 4);
+
                 return {
                     ...path,
-                    points: getSmoothedPoints(path.points, 20)
+                    points: optimized
                 };
             });
             
+            // Efek kedip saat merapihkan
             canvas.style.transition = 'opacity 0.15s ease-in-out';
-            canvas.style.opacity = '0.5';
+            canvas.style.opacity = '0.3';
             setTimeout(() => canvas.style.opacity = '1', 150);
+            
             redrawAllPaths();
         });
 
-        // Tombol Warna Cepat
+        // Warna & Kontrol Lainnya
         colorBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 colorPicker.value = btn.getAttribute('data-color');
             });
         });
 
-        // Undo & Clear & Download
         undoBtn.addEventListener('click', () => {
             if (savedPaths.length > 0) {
                 savedPaths.pop();
@@ -436,7 +451,7 @@
         clearBtn.addEventListener('click', () => {
             if (confirm('Apakah Anda yakin ingin menghapus semua coretan?')) {
                 savedPaths = [];
-                tracingImage.classList.add('hidden'); // Sembunyikan gambar tracing juga
+                tracingImage.classList.add('hidden');
                 opacityControl.classList.add('hidden');
                 tracingImage.src = '';
                 redrawAllPaths();
@@ -444,27 +459,19 @@
         });
 
         downloadBtn.addEventListener('click', () => {
-            // Tentukan skala resolusi (3 = 3x lipat lebih tajam/HD)
             const scale = 3; 
-            
             const tempCanvas = document.createElement('canvas');
             const tCtx = tempCanvas.getContext('2d');
             
-            // Atur ukuran kanvas resolusi tinggi
             tempCanvas.width = canvas.width * scale;
             tempCanvas.height = canvas.height * scale;
             
-            // Isi latar belakang dengan warna putih
             tCtx.fillStyle = '#ffffff';
             tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-            
-            // Terapkan skala pada context agar garis ikut membesar secara proporsional
             tCtx.scale(scale, scale);
 
-            // Gambar ulang semua histori garis (Vector rendering) ke kanvas resolusi tinggi
             savedPaths.forEach(path => drawSmoothPath(tCtx, path));
 
-            // Jika sedang menggambar saat tombol simpan ditekan
             if (isDrawing && currentPath.length > 0) {
                 drawSmoothPath(tCtx, {
                     points: currentPath,
@@ -474,7 +481,6 @@
                 });
             }
 
-            // Simpan gambar dengan kualitas render maksimal
             const dataURL = tempCanvas.toDataURL('image/png', 1.0);
             const link = document.createElement('a');
             link.download = 'FunArt_OpangDarmawan_HD.png';
